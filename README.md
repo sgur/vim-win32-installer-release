@@ -6,6 +6,8 @@ Download latest vim-win32-installer release via Vim script
 Demo
 ----
 
+![](.github/assets/demo.gif "Demo")
+
 Requirement
 -----------
 

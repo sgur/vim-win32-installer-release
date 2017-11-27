@@ -42,6 +42,11 @@ let g:win32installer_curl_options = ['--insecure']
 Install
 -------
 
+- Install this plugin with your favorite plugin manager
+- Use "Vim packages"
+  1. Locate this plugin to the `~/.vim/pack/downloader/opt/vim-win32-installer`
+  2. `:packadd vim-win32-installer`
+
 License
 -------
 

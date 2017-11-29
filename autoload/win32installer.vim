@@ -4,30 +4,46 @@ scriptencoding utf-8
 
 " Interface {{{1
 
-function! win32installer#get_latest() abort
-  call job_start(['curl'] + g:win32installer_curl_options + ['--silent', 'https://api.github.com/repos/vim/vim-win32-installer/releases/latest'], {
-        \ 'close_cb': function('s:callback')
+function! win32installer#download(is_only_latest) abort
+  let url = a:is_only_latest
+        \ ? 'https://api.github.com/repos/vim/vim-win32-installer/releases/latest'
+        \ : 'https://api.github.com/repos/vim/vim-win32-installer/releases'
+  call job_start(['curl'] + g:win32installer_curl_options + ['--silent', url], {
+        \ 'close_cb': function('s:callback', [a:is_only_latest])
         \ })
 endfunction
 
 
 " Internal {{{1
 
+" Returns: Either we should finish the command or not
+" v:true: Should finish
+" v:false: Shouldn't finish
 function! s:download(json) abort "{{{
   let asset = s:extract_asset(a:json)
   if empty(asset)
     echoerr 'No download found for' s:arch
-    return
+    return v:true
   endif
 
   let name = a:json.name
   let patches = split(split(a:json.body, "\n\n")[2], "\n")
-  if s:confirm_with_window(name, patches)
+  let result = s:confirm_with_window(name, patches)
+  if result == s:YES
     let path = s:directory . asset.name
     call s:start_download(asset.url, path)
+    return v:true
+  elseif result == s:NO
+    return v:false
+  elseif result == s:CANCEL
+    return v:true
   endif
 endfunction "}}}
 
+" Returns:
+" - 1: Yes: Download this release
+" - 2: No: Skip this release
+" - 3: Cancel: Skip whole releases
 function! s:confirm_with_window(name, patches) abort "{{{
   botright new +set\ buftype=nofile
   silent execute 'file' a:name
@@ -35,13 +51,13 @@ function! s:confirm_with_window(name, patches) abort "{{{
   silent! bufnr.'bwipeout'
   try
     call setline(1, 'Installed: ' . s:version_string())
-    call append(line('$'), printf('Latest   : %s', a:name))
+    call append(line('$'), printf('Download : %s', a:name))
     call append(line('$'), 'Changes:')
     for patch in a:patches
       call append(line('$'), patch)
     endfor
     redraw
-    return confirm("Are you ready to download?", "&Yes\n&No", 2) == 1
+    return confirm("Are you sure you want to download?", "&Yes\n&No\n&Cancel", 2)
   finally
     execute bufnr.'bwipeout'
   endtry
@@ -56,17 +72,32 @@ function! s:version_string() abort "{{{
   return printf('v%d.%d.%d', major, minor, patch)
 endfunction "}}}
 
-function! s:callback(channel) abort "{{{
+function! s:callback(is_single_release, channel) abort "{{{
   let lines = []
   while ch_canread(a:channel)
     let lines += [ch_read(a:channel)]
   endwhile
   let json = json_decode(join(lines, "\n"))
-  if !has_key(json, 'assets')
+  if type(json) == v:t_dict && has_key(json, 'message')
     echoerr 'Download failed:' get(json, 'message', 'NO MESSAGE')
     return
   endif
-  call s:download(json)
+
+  if a:is_single_release && type(json) == v:t_dict
+    call s:download(json)
+    return
+  endif
+
+  if !a:is_single_release && type(json) == v:t_list
+    for entry in json
+      if s:download(entry)
+        break
+      endif
+    endfor
+    return
+  endif
+
+  echoerr 'Unexpected response from github.com'
 endfunction "}}}
 
 function! s:extract_asset(json) abort "{{{
@@ -105,6 +136,11 @@ endfunction "}}}
 
 let s:directory = fnamemodify(isdirectory(expand('~\Downloads')) ? '~\Downloads' : '', ':p')
 let s:arch = has('win64') ? 'x64' : 'x86'
+let s:YES = 1
+let s:NO = 2
+let s:CANCEL = 3
+silent! lockvar s:YES s:NO s:CANCEL
+
 
 
 " 1}}}

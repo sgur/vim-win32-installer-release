@@ -56,7 +56,7 @@ Set this to 1 start downloader after loading the plugin (default: `0`)
 let g:win32installer_autostart = 1
 ```
 
-It is useful to locate the plugin to the `opt` folder in `packdir` and use `packadd vim-win32-installer`.
+It is useful when the plugin is located in the `opt` folder with `packages` feature and use it via `packadd vim-win32-installer`.
 
 #### `g:win32installer_curl_options`
 

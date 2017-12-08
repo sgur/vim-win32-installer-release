@@ -16,28 +16,14 @@ endfunction
 
 " Internal {{{1
 
-" Returns: Either we should finish the command or not
-" v:true: Should finish
-" v:false: Shouldn't finish
 function! s:download(json) abort "{{{
   let asset = s:extract_asset(a:json)
   if empty(asset)
     echoerr 'No download found for' s:arch
-    return v:true
+    return
   endif
 
-  let name = a:json.name
-  let patches = split(split(a:json.body, "\n\n")[2], "\n")
-  let result = s:confirm_with_window(name, patches)
-  if result == s:YES
-    let path = s:directory . asset.name
-    call s:start_download(asset.url, path)
-    return v:true
-  elseif result == s:NO
-    return v:false
-  elseif result == s:CANCEL
-    return v:true
-  endif
+  call s:start_download(asset.url, s:directory . asset.name)
 endfunction "}}}
 
 " Returns:
@@ -84,17 +70,28 @@ function! s:callback(is_single_release, channel) abort "{{{
   endif
 
   if a:is_single_release && type(json) == v:t_dict
-    call s:download(json)
+    let name = json.name
+    let patches = split(split(json.body, "\n\n")[2], "\n")
+    if s:confirm_with_window(name, patches) == s:YES
+      call s:download(json)
+    endif
     return
   endif
 
   if !a:is_single_release && type(json) == v:t_list
     for entry in json
-      if s:download(entry)
-        break
+      let name = entry.name
+      let patches = split(split(entry.body, "\n\n")[2], "\n")
+      let result = s:confirm_with_window(name, patches)
+      if result == s:YES
+        call s:download(json)
+        return
+      elseif result == s:NO
+        continue
+      elseif result == s:CANCEL
+        return
       endif
     endfor
-    return
   endif
 
   echoerr 'Unexpected response from github.com'

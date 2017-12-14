@@ -23,27 +23,11 @@ Usage
 
 Download gVim Windows build (x86 or amd64) from https://github.com/vim/vim-win32-installer/releases
 
-Without `<bang>`, this command is as same as `:Win32InstallerGetLatest`
-With `<bang>`, this command is as same as `:Win32InstallerGetReleases`
+Without `<bang>`, Download the latest relase.
+With `<bang>`, Fetch several releases and confirm wich to download.
 
 ```vim
 :Win32InstallerDownload!
-```
-
-#### Win32InstallerGetLatest
-
-Download the latest release.
-
-```vim
-:Win32InstallerGetLatest
-```
-
-#### Win32InstallerGetReleases
-
-Fetch several releases and confirm which to download.
-
-```vim
-:Win32InstallerGetReleases
 ```
 
 ### Options

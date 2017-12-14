@@ -24,14 +24,12 @@ set cpoptions&vim
 
 
 command! -bang -nargs=0 Win32InstallerDownload  call win32installer#download(<bang>1)
-command! -nargs=0 Win32InstallerGetLatest  call win32installer#download(1)
-command! -nargs=0 Win32InstallerGetReleases  call win32installer#download(0)
 
 
 let g:win32installer_curl_options = get(g:, 'win32installer_curl_options', [])
 
 if get(g:, 'win32installer_autostart', 0)
-  Win32InstallerGetLatest
+  Win32InstallerDownload
 endif
 
 let &cpoptions = s:save_cpo

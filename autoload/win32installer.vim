@@ -26,11 +26,7 @@ function! s:download(json) abort "{{{
   call s:start_download(asset.url, s:directory . asset.name)
 endfunction "}}}
 
-" Returns:
-" - 1: Yes: Download this release
-" - 2: No: Skip this release
-" - 3: Cancel: Skip whole releases
-function! s:confirm_with_window(name, patches) abort "{{{
+function! s:confirm_with_window(name, patches, candidate) abort "{{{
   botright new +set\ buftype=nofile
   silent execute 'file' a:name
   let bufnr = bufnr('%')
@@ -43,7 +39,7 @@ function! s:confirm_with_window(name, patches) abort "{{{
       call append(line('$'), patch)
     endfor
     redraw
-    return confirm("Are you sure you want to download?", "&Yes\n&No\n&Cancel", 2)
+    return confirm("Are you sure you want to download?", join(map(copy(a:candidate), '"&" . v:val'), "\n"), 2)
   finally
     execute bufnr.'bwipeout'
   endtry
@@ -69,32 +65,19 @@ function! s:callback(is_single_release, channel) abort "{{{
     return
   endif
 
-  if a:is_single_release && type(json) == v:t_dict
-    let name = json.name
-    let patches = split(split(json.body, "\n\n")[2], "\n")
-    if s:confirm_with_window(name, patches) == s:YES
-      call s:download(json)
+  for entry in type(json) == v:t_dict ? [json] : json
+    let name = entry.name
+    let patches = split(split(entry.body, "\n\n")[2], "\n")
+		let candidate = a:is_single_release ? s:confirm_single : s:confirm_plural
+
+		let result = s:confirm_with_window(name, patches, candidate)
+		if result == s:DOWNLOAD
+			call s:download(entry)
+      return
+    elseif result == s:CANCEL
+      return
     endif
-    return
-  endif
-
-  if !a:is_single_release && type(json) == v:t_list
-    for entry in json
-      let name = entry.name
-      let patches = split(split(entry.body, "\n\n")[2], "\n")
-      let result = s:confirm_with_window(name, patches)
-      if result == s:YES
-        call s:download(json)
-        return
-      elseif result == s:NO
-        continue
-      elseif result == s:CANCEL
-        return
-      endif
-    endfor
-  endif
-
-  echoerr 'Unexpected response from github.com'
+  endfor
 endfunction "}}}
 
 function! s:extract_asset(json) abort "{{{
@@ -133,11 +116,13 @@ endfunction "}}}
 
 let s:directory = fnamemodify(isdirectory(expand('~\Downloads')) ? '~\Downloads' : '', ':p')
 let s:arch = has('win64') ? 'x64' : 'x86'
-let s:YES = 1
-let s:NO = 2
+let s:DOWNLOAD = 1
+let s:SKIP = 2
 let s:CANCEL = 3
-silent! lockvar s:YES s:NO s:CANCEL
+silent! lockvar s:DOWNLOAD s:SKIP s:CANCEL
 
+let s:confirm_single = ['Yes', 'No']
+let s:confirm_plural = ['Yes', 'Prev', 'CANCEL']
 
 
 " 1}}}

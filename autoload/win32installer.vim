@@ -23,7 +23,10 @@ function! s:download(json) abort "{{{
     return
   endif
 
-  call s:start_download(asset.url, s:directory . asset.name)
+  if !isdirectory(s:directory)
+    silent call mkdir(s:directory, 'p')
+  endif
+  call s:start_download(asset.url, s:directory . '\' . asset.name)
 endfunction "}}}
 
 function! s:confirm_with_window(name, patches, candidate) abort "{{{
@@ -91,9 +94,33 @@ function! s:start_download(url, path) abort "{{{
         \ 'term_name': a:url,
         \ 'term_rows': 3,
         \ 'term_finish': 'close',
-        \ 'exit_cb': {job,status -> execute(printf('!cmd /c start /b "" "%s"', fnamemodify(a:path, ':h')))}
+        \ 'exit_cb': function('s:callback_on_download', [a:path]),
         \ })
   execute 'wincmd' 'p'
+endfunction "}}}
+
+function! s:callback_on_download(vim_archive, job, status) abort "{{{
+  let path = fnamemodify($VIM , ':p:h:h')
+  if g:win32installer_self_update && isdirectory(path)
+    let modified = !empty(filter(map(range(1, bufnr('$')), 'getbufvar(v:val, "&modified")'), 'v:val == 1'))
+    if !modified || confirm("Save all modified buffers and update?", "&Yes\n&No") == 1
+      call s:self_update(path, a:vim_archive)
+    endif
+  endif
+  execute printf('!cmd /c start /b "" "%s"', fnamemodify(a:vim_archive, ':h'))
+endfunction "}}}
+
+function! s:self_update(path, vim_archive) abort "{{{
+  if executable('unzip')
+    let cmd = printf('unzip -o -d "%s" "%s"', a:path, a:vim_archive)
+  elseif executable('7z')
+    let cmd = printf('7z x -aoa -o"%s" "%s"', a:path, a:vim_archive)
+  else
+    echohl WarningMsg | echomsg "No achivers found." | echohl NONE
+    return
+  endif
+  execute printf('!start cmd /c "%s && start /D "%s" %s"', cmd, a:path, a:vim_archive, getcwd(), v:progpath)
+  qall!
 endfunction "}}}
 
 function! s:parse_included_patches(str) abort "{{{
@@ -114,7 +141,7 @@ endfunction "}}}
 
 " Initialization {{{1
 
-let s:directory = fnamemodify(isdirectory(expand('~\Downloads')) ? '~\Downloads' : '', ':p')
+let s:directory = fnamemodify(tempname(), ':p:r:h')
 let s:arch = has('win64') ? 'x64' : 'x86'
 let s:DOWNLOAD = 1
 let s:SKIP = 2

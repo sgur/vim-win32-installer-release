@@ -28,9 +28,6 @@ command! -bang -nargs=0 Win32InstallerDownload  call win32installer#download(<ba
 
 let g:win32installer_curl_options = get(g:, 'win32installer_curl_options', [])
 
-if get(g:, 'win32installer_autostart', 0)
-  Win32InstallerDownload
-endif
 
 let &cpoptions = s:save_cpo
 unlet s:save_cpo

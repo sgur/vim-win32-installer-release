@@ -119,7 +119,7 @@ function! s:self_update(path, vim_archive) abort "{{{
     echohl WarningMsg | echomsg "No achivers found." | echohl NONE
     return
   endif
-  execute printf('!start cmd /c "%s && start /D "%s" %s"', cmd, a:path, a:vim_archive, getcwd(), v:progpath)
+  execute printf('!start cmd /c "%s && start /D "%s" %s"', cmd, getcwd(), v:progpath)
   qall!
 endfunction "}}}
 

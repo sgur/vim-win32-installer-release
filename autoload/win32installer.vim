@@ -103,7 +103,12 @@ function! s:callback_on_download(vim_archive, job, status) abort "{{{
   let path = fnamemodify($VIM , ':p:h:h')
   if g:win32installer_self_update && isdirectory(path)
     let modified = !empty(filter(map(range(1, bufnr('$')), 'getbufvar(v:val, "&modified")'), 'v:val == 1'))
-    if !modified || confirm("Save all modified buffers and update?", "&Yes\n&No") == 1
+    let servers = filter(split(serverlist(), "\n"), "v:val !=# v:servername")
+    if (empty(servers) && !modified) || confirm("Save all modified buffers and update?", "&Yes\n&No") == 1
+      wall
+      for server in servers
+        call remote_send(server, "\<C-\\>\<C-n>:<C-u>qall!\<CR>")
+      endfor
       call s:self_update(path, a:vim_archive)
     endif
   endif

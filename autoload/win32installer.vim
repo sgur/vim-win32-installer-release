@@ -176,8 +176,19 @@ function! s:self_update(path, vim_archive) abort "{{{
     echohl WarningMsg | echomsg "No achivers found." | echohl NONE
     return
   endif
-  execute printf('!start cmd /c "%s && start /D "%s" %s"', cmd, getcwd(), v:progpath)
+  call s:execute_without_terminal(printf('!start cmd /c "%s && start /D "%s" %s"', cmd, getcwd(), v:progpath))
   qall!
+endfunction "}}}
+
+" Avoid usin terminal for shell command execution
+function! s:execute_without_terminal(cmd) abort "{{{
+  try
+    let go = &guioptions
+    set guioptions-=!
+    execute a:cmd
+  finally
+    let &guioptions = go
+  endtry
 endfunction "}}}
 
 function! s:parse_included_patches(str) abort "{{{

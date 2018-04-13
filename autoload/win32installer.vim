@@ -5,6 +5,12 @@ scriptencoding utf-8
 " Interface {{{1
 
 function! win32installer#download(is_only_latest) abort
+  let cache = s:get_cache(a:is_only_latest)
+  if !empty(cache)
+    let json = json_decode(join(readfile(cache), "\n"))
+    call s:process_json(json, a:is_only_latest)
+    return
+  endif
   let url = a:is_only_latest
         \ ? 'https://api.github.com/repos/vim/vim-win32-installer/releases/latest'
         \ : 'https://api.github.com/repos/vim/vim-win32-installer/releases'
@@ -57,7 +63,44 @@ function! s:version_string() abort "{{{
   return printf('v%d.%d.%d', major, minor, patch)
 endfunction "}}}
 
-function! s:callback(is_single_release, channel) abort "{{{
+function! s:id_for_type(is_only_latest) abort "{{{
+  return a:is_only_latest ? 'latest_' : 'releases_'
+endfunction "}}}
+
+function! s:cache_path(is_only_latest) abort "{{{
+  if !empty(g:win32installer_cache_dir)
+    let dir = fnamemodify(g:win32installer_cache_dir, ':p:h')
+    if isdirectory(dir) && filewritable(dir) == 2
+      return expand(dir. '/' . s:id_for_type(a:is_only_latest) . localtime() . '.json')
+    endif
+  endif
+  return ''
+endfunction "}}}
+
+function! s:get_cache(is_only_latest) abort "{{{
+  if empty(g:win32installer_cache_dir)
+    return ''
+  endif
+  let dir = fnamemodify(g:win32installer_cache_dir, ':p:h')
+  if !isdirectory(dir)
+    return ''
+  endif
+
+  let limit = localtime() - (60 * 60)
+  let ptn = s:id_for_type(a:is_only_latest) . '*.json'
+  let files = sort(filter(map(globpath(dir, ptn, 1, 1), {
+        \ k, v -> {
+        \   'path': v,
+        \   'localtime': getftime(v)
+        \ }}), {k, v -> v.localtime > limit}),
+        \ {v1, v2 -> v1.localtime == v2.localtime ? 0 : v1.localtime < v2.localtime ? 1 : -1})
+  if empty(files)
+    return ''
+  endif
+  return files[0].path
+endfunction "}}}
+
+function! s:callback(is_only_latest, channel) abort "{{{
   let lines = []
   while ch_canread(a:channel)
     let lines += [ch_read(a:channel)]
@@ -68,14 +111,23 @@ function! s:callback(is_single_release, channel) abort "{{{
     return
   endif
 
-  for entry in type(json) == v:t_dict ? [json] : json
+  let path = s:cache_path(a:is_only_latest)
+  if !empty(path)
+    call writefile(lines, path)
+  endif
+
+  call s:process_json(json, a:is_only_latest)
+endfunction "}}}
+
+function! s:process_json(json, is_single_release) abort "{{{
+  for entry in type(a:json) == v:t_dict ? [a:json] : a:json
     let name = entry.name
     let patches = split(split(entry.body, "\n\n")[2], "\n")
-		let candidate = a:is_single_release ? s:confirm_single : s:confirm_plural
+    let candidate = a:is_single_release ? s:confirm_single : s:confirm_plural
 
-		let result = s:confirm_with_window(name, patches, candidate)
-		if result == s:DOWNLOAD
-			call s:download(entry)
+    let result = s:confirm_with_window(name, patches, candidate)
+    if result == s:DOWNLOAD
+      call s:download(entry)
       return
     elseif result == s:CANCEL
       return

@@ -30,6 +30,8 @@ let g:win32installer_curl_options = get(g:, 'win32installer_curl_options', [])
 
 let g:win32installer_self_update = get(g:, 'win32installer_self_update', 0)
 
+let g:win32installer_cache_dir = get(g:, 'win32installer_cache_dir', '')
+
 let &cpoptions = s:save_cpo
 unlet s:save_cpo
 

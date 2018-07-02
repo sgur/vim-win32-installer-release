@@ -60,7 +60,7 @@ function! s:version_string() abort "{{{
   let minor = v:version % 100
   let ver_str = matchstr(split(execute('version'), "\n")[2], ':\s\zs[- ,0-9]\+$')
   let patch = max(s:parse_included_patches(ver_str))
-  return printf('v%d.%d.%d', major, minor, patch)
+  return printf('v%d.%d.%04d', major, minor, patch)
 endfunction "}}}
 
 function! s:id_for_type(is_only_latest) abort "{{{
@@ -106,7 +106,7 @@ function! s:callback(is_only_latest, channel) abort "{{{
     let lines += [ch_read(a:channel)]
   endwhile
   let json = json_decode(join(lines, "\n"))
-  if type(json) == v:t_dict && has_key(json, 'message')
+  if empty(lines) || empty(json) || type(json) == v:t_dict && has_key(json, 'message')
     echoerr 'Download failed:' get(json, 'message', 'NO MESSAGE')
     return
   endif
